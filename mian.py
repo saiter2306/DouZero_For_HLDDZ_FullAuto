@@ -55,14 +55,23 @@ AllCards = ['D', 'X', '2', 'A', 'K', 'Q', 'J', 'T', '9', '8', '7', '6', '5', '4'
 helper = GameHelper()
 
 
+#识别加倍数
 def get_ocr_fast():
+    #坐标定义
     pos = (1060, 756, 120, 40)
+    #截图
     img, _ = helper.Screenshot()
+    #转换为cv2支持的图像
     img = cv2.cvtColor(np.asarray(img), cv2.COLOR_RGB2BGR)
+    #再次转换为灰度图像便于识别
     gray_img = cv2.cvtColor(np.asarray(img), cv2.COLOR_BGR2GRAY)
+    #进行二值化处理
     _, binary_image = cv2.threshold(gray_img, 128, 255, cv2.THRESH_BINARY)
+    #进去区域划定
     img = img[pos[1]:pos[1] + pos[3], pos[0]:pos[0] + pos[2]]
+    #对缩小范围的图片进行ocr识别
     result = ocr.ocr(img)
+    #如果有识别到文字信息，返回
     if len(result) > 0:
         result = result[0]['text']
         beishu = int(result)
@@ -70,7 +79,7 @@ def get_ocr_fast():
         beishu = 30
     return beishu
 
-
+#识别指定坐标的文字
 def get_ocr_cards(pos):
     img, _ = helper.Screenshot()
     img = cv2.cvtColor(np.asarray(img), cv2.COLOR_RGB2BGR)
@@ -153,20 +162,24 @@ class Worker(QThread):
         self.FilterArg = 30  # 我的牌检测结果过滤参数
 
         # 坐标
-        self.MyHandCardsPos = (180, 560, 1050, 90)  # 我的截图区域
-        self.LPlayedCardsPos = (320, 280, 400, 120)  # 左边出牌截图区域
-        self.RPlayedCardsPos = (720, 280, 400, 120)  # 右边出牌截图区域
-        self.MPlayedCardsPos = (180, 420, 1050, 90)  # 我的出牌截图区域
+        self.MyHandCardsPos = (180, 530, 1050, 90)  # 我的截图区域
+        self.LPlayedCardsPos = (225, 240, 400, 120)  # 左边出牌截图区域
+        self.RPlayedCardsPos = (820, 240, 400, 120)  # 右边出牌截图区域
+        self.MPlayedCardsPos = (180, 390, 1050, 90)  # 我的出牌截图区域
 
-        self.LandlordCardsPos = (600, 33, 220, 103)  # 地主底牌截图区域
-        self.LPassPos = (360, 360, 120, 80)  # 左边不出截图区域
-        self.RPassPos = (940, 360, 120, 80)  # 右边不出截图区域
-        self.MPassPos = (636, 469, 152, 87)  # 我的不出截图区域
+        self.laotouPos = (670, 190, 97, 125) #牌背的截图区域
 
-        self.PassBtnPos = (200, 450, 1000, 120)  # 要不起截图区域
-        self.GeneralBtnPos = (200, 450, 1000, 120)  # 叫地主、抢地主、加倍按钮截图区域
-        self.LandlordFlagPos = [(1247, 245, 48, 52), (12, 661, 51, 53), (123, 243, 52, 54)]  # 地主标志截图区域(右-我-左)
-        self.blue_cards_num = [(273, 388, 33, 42), (1117, 387, 33, 44)]  # 加倍阶段上家和下家的牌数显示区域
+        self.LimitStartBtn = (502, 437, 150, 38) #封顶开始按钮
+
+        self.LandlordCardsPos = (700, 53, 110, 53)  # 地主底牌截图区域
+        self.LPassPos = (230, 270, 115, 52)  # 左边不出截图区域
+        self.RPassPos = (1110, 270, 115, 52)  # 右边不出截图区域
+        self.MPassPos = (659, 449, 115, 52)  # 我的不出截图区域
+
+        self.PassBtnPos = (200, 390, 1000, 120)  # 要不起截图区域
+        self.GeneralBtnPos = (200, 390, 1000, 120)  # 叫地主、抢地主、加倍按钮截图区域
+        self.LandlordFlagPos = [(1300, 248, 22, 61), (111, 705, 22, 61), (112, 248, 22, 61)]  # 地主标志截图区域(右-我-左)
+        self.blue_cards_num = [(145, 365, 30, 36), (1267, 365, 30, 36)]  # 加倍阶段上家和下家的牌数显示区域
 
         self.card_play_model_path_dict = {
             'landlord': "baselines/resnet/resnet_landlord.ckpt",
@@ -309,27 +322,31 @@ class Worker(QThread):
 
     def before_start(self):
         if self.change_mode:
-            self.LandlordCardsPos = (602, 88, 218, 104)
+            self.LandlordCardsPos = (700, 53, 110, 53)
+        
+        # 检测是否进入游戏界面
         self.in_game_flag = False
         print("未进入游戏", end='')
-        in_game = helper.LocateOnScreen("chat", region=(1302, 744, 117, 56))
+        in_game = helper.LocateOnScreen("chat", region=(1275, 758, 99, 33))
         while in_game is None:
             self.sleep(1000)
             print(".", end="")
             self.label_display.emit("未进入游戏")
-            in_game = helper.LocateOnScreen("chat", region=(1302, 744, 117, 56))
+            in_game = helper.LocateOnScreen("chat", region=(1275, 758, 99, 33))
             self.detect_start_btn()
         self.in_game_flag = True
         self.sleep(300)
+
+        # 检测是否开始游戏
         if self.in_game_flag:
             print("\n在游戏场内")
             print("游戏未开始", end="")
-            laotou = helper.LocateOnScreen("laotou", region=self.LandlordCardsPos)
+            laotou = helper.LocateOnScreen("limit_start_btn", region=self.laotouPos)
             while laotou is None:
                 self.sleep(500)
                 print(".", end="")
                 self.label_display.emit("游戏未开始")
-                laotou = helper.LocateOnScreen("laotou", region=self.LandlordCardsPos)
+                laotou = helper.LocateOnScreen("laotou", region=self.laotouPos)
                 self.detect_start_btn()
 
             print("\n开始游戏")
@@ -1431,6 +1448,7 @@ class Worker(QThread):
         return result
 
 
+# region 窗体定义
 class MyPyQT_Form(QtWidgets.QWidget, Ui_Form):
     def __init__(self):
         super(MyPyQT_Form, self).__init__()
@@ -1637,7 +1655,7 @@ class MyPyQT_Form(QtWidgets.QWidget, Ui_Form):
             newItem = QTableWidgetItem("0")
             newItem.setTextAlignment(Qt.AlignHCenter)
             self.tableWidget.setItem(0, i, newItem)
-
+# endregion 
 
 if __name__ == '__main__':
     app = QtWidgets.QApplication(sys.argv)

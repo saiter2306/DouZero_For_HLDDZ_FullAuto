@@ -98,9 +98,17 @@ def FindImage(fromImage, template, threshold=0.9):
 
 def LocateOnImage(image, template, region=None, confidence=0.8):
     if region is not None:
+        #截取给到的区域
         x, y, w, h = region
         imgShape = image.shape
         image = image[y:y + h, x:x + w, :]
+
+        #用红线框出区域
+        # image = cv2.rectangle(image, region[0:2], (region[0] + region[2], region[1] + region[3]), (0, 0, 255), 3)
+        # image = cv2.putText(image, region[4], region[0:2], cv2.FONT_HERSHEY_COMPLEX, 1, (128, 128, 128), 2, cv2.LINE_AA)
+    
+        # cv2.imshow('image', image)
+
     res = cv2.matchTemplate(image, template, cv2.TM_CCOEFF_NORMED)
     _, _, _, maxLoc = cv2.minMaxLoc(res)
     if (res >= confidence).any():
@@ -130,7 +138,7 @@ class GameHelper:
         self.Pics = {}
         self.PicsCV = {}
         st = time.time()
-        self.Handle = win32gui.FindWindow("UnityWndClass", None)
+        self.Handle = win32gui.FindWindow("Chrome_WidgetWin_0", "腾讯欢乐斗地主")
         self.Interrupt = False
         self.RealRate = (1440, 810)
         self.GetZoomRate()
@@ -153,7 +161,7 @@ class GameHelper:
         while try_count > 0 and not success:
             try:
                 try_count -= 1
-                self.Handle = win32gui.FindWindow("UnityWndClass", None)
+                self.Handle = win32gui.FindWindow("Chrome_WidgetWin_0", "腾讯欢乐斗地主")
                 win32gui.SetActiveWindow(self.Handle)
                 hwnd = self.Handle
                 left, top, right, bot = win32gui.GetWindowRect(hwnd)
@@ -200,6 +208,7 @@ class GameHelper:
             image = img
         else:
             image, _ = self.Screenshot()
+
         imgcv = cv2.cvtColor(np.asarray(image), cv2.COLOR_RGB2BGR)
         return LocateOnImage(imgcv, self.PicsCV[templateName], region=region, confidence=confidence)
 
@@ -282,6 +291,7 @@ class GameHelper:
 
         pyautogui.moveTo(x, y)
 
+    # 播放声音
     def play_sound(self, sound_file):
         pygame.mixer.init()
         pygame.mixer.music.load(sound_file)
